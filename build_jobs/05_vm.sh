@@ -59,6 +59,9 @@
 #   COREOS_DEV_BUILDS.
 #   Writes gce.properties for triggering a GCE test job if applicable.
 
+#CORK=/home/jenkins/coreos--mantle/bin/cork
+CORK=./bin/cork
+
 set -ex
 
 rm -f gce.properties
@@ -72,7 +75,7 @@ else
 fi
 
 enter() {
-  ./bin/cork enter --experimental -- env \
+  ${CORK} enter --experimental -- env \
     COREOS_DEV_BUILDS="http://storage.googleapis.com/${COREOS_DEV_BUILDS}" \
     "$@"
 }
@@ -101,7 +104,7 @@ else
 fi
 
 mkdir -p src tmp
-./bin/cork download-image --root="${root}/boards/${BOARD}/${COREOS_VERSION}" \
+${CORK} download-image --root="${root}/boards/${BOARD}/${COREOS_VERSION}" \
                           --json-key="${GOOGLE_APPLICATION_CREDENTIALS}" \
                           --cache-dir=./src \
                           --platform=qemu
