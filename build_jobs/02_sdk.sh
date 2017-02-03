@@ -4,17 +4,27 @@
 #
 # Input Parameters:
 #
-#   USE_CACHE=false
-#     Enable use of any binary packages cached locally from previous builds.
-#     Currently not safe to enable, particularly bad with multiple branches.
-#
-#   MANIFEST_URL=https://github.com/coreos/manifest-builds.git
-#   MANIFEST_REF=refs/tags/
-#   MANIFEST_NAME=release.xml
-#     Git URL, tag, and manifest file for this build.
+#   COREOS_DEV_BUILDS=builds.developer.core-os.net
+#     Upload root for binary SDK and board packages.
 #
 #   COREOS_OFFICIAL=0
 #     Set to 1 when building official releases.
+#
+#   GPG_USER_ID=buildbot@coreos.com
+#     User ID for GPG_SECRET_KEY_FILE.
+#
+#   MANIFEST_NAME=release.xml
+#     Git URL, tag, and manifest file for this build.
+#
+#   MANIFEST_REF=refs/tags/${tag}
+#     Git branch or tag in github.com/coreos/manifest to build
+#
+#   MANIFEST_URL=https://github.com/coreos/manifest-builds.git
+#     Git repository of manifest-builds.
+#
+#   USE_CACHE=false
+#     Enable use of any binary packages cached locally from previous builds.
+#     Currently not safe to enable, particularly bad with multiple branches.
 #
 # Input Artifacts:
 #
@@ -59,5 +69,5 @@ sudo rm -rf src/build/catalyst/builds
 
 enter sudo emerge -uv --jobs=2 catalyst
 enter sudo /mnt/host/source/src/scripts/bootstrap_sdk \
-  --sign buildbot@coreos.com --sign_digests buildbot@coreos.com \
-  --upload --upload_root gs://builds.developer.core-os.net
+  --sign ${GPG_USER_ID} --sign_digests ${GPG_USER_ID} \
+  --upload --upload_root gs://${COREOS_DEV_BUILDS}
