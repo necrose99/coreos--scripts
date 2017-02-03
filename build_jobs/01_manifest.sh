@@ -4,12 +4,30 @@
 #
 # Input Parameters:
 #
-#   MANIFEST_REF=master
-#     Git branch or tag in github.com/coreos/manifest to build
+#   COREOS_DEV_BUILDS=builds.developer.core-os.net
+#     Upload root for binary SDK and board packages.
+#
+#   COREOS_REL_BUILDS=builds.release.core-os.net
+#     Upload root for images.
+#
+#   GIT_AUTHOR_EMAIL=jenkins@jenkins.coreos.systems
+#     Jenkins commit author.
+#
+#   GIT_AUTHOR_NAME="CoreOS Jenkins"
+#     Jenkins commit author.
+#
+#   GPG_USER_ID=buildbot@coreos.com
+#     User ID for GPG_SECRET_KEY_FILE.
 #
 #   LOCAL_MANIFEST=
 #     Repo local manifest to amend the branch's default manifest with.
 #     https://wiki.cyanogenmod.org/w/Doc:_Using_manifests#The_local_manifest
+#
+#   MANIFEST_REF=master
+#     Git branch or tag in github.com/coreos/manifest to build
+#
+#   MANIFEST_URL=https://github.com/coreos/manifest-builds.git
+#     Git repository of manifest-builds.
 #
 # Input Artifacts:
 #
@@ -17,28 +35,39 @@
 #
 # Git:
 #
-#   github.com/coreos/manifest checked out to $WORKSPACE/manifest
-#   SSH push access to github.com/coreos/manifest-builds
+#   MANIFEST_URL checked out to $WORKSPACE/manifest
+#   Requires SSH push access to MANIFEST_URL
 #
 # Output:
 #
-#   Pushes build tag to manifest-builds.
+#   Pushes build tag to MANIFEST_URL.
 #   Writes manifest.properties w/ parameters for sdk and toolchain jobs.
 
 set -ex
+
+COREOS_DEV_BUILDS="glevand-dev-builds"
+COREOS_REL_BUILDS="glevand-dev-builds/releases"
+GIT_AUTHOR_EMAIL="jenkins@openhuawei.com"
+GIT_AUTHOR_NAME="OpenHuawei Jenkins"
+GPG_USER_ID="jenkins@openhuawei.com"
+MANIFEST_URL="https://github.com/glevand/manifest-builds.git"
 
 export GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=no"
 
 finish() {
   local tag="$1"
   git -C "${WORKSPACE}/manifest" push \
-    "ssh://git@github.com/coreos/manifest-builds.git" \
+    "ssh://git@${MANIFEST_URL#https://}" \
     "refs/tags/${tag}:refs/tags/${tag}"
   tee "${WORKSPACE}/manifest.properties" <<EOF
-MANIFEST_URL = https://github.com/coreos/manifest-builds.git
-MANIFEST_REF = refs/tags/${tag}
-MANIFEST_NAME = release.xml
+COREOS_DEV_BUILDS = ${COREOS_DEV_BUILDS}
 COREOS_OFFICIAL = ${COREOS_OFFICIAL:-0}
+COREOS_REL_BUILDS = ${COREOS_REL_BUILDS}
+GPG_USER_ID = ${GPG_USER_ID}
+LOCAL_MANIFEST = ${LOCAL_MANIFEST}
+MANIFEST_NAME = release.xml
+MANIFEST_REF = refs/tags/${tag}
+MANIFEST_URL = ${MANIFEST_URL}
 EOF
 }
 
@@ -71,6 +100,11 @@ if [[ -n "${LOCAL_MANIFEST}" ]]; then
   cat >.repo/local_manifests/local.xml <<<"${LOCAL_MANIFEST}"
 fi
 
+sudo systemctl status systemd-binfmt.service
+
+# Cleanup any failed jenkins build
+./bin/cork delete
+
 ./bin/cork update --create --downgrade-replace --verbose \
                   --manifest-url "${GIT_URL}" \
                   --manifest-branch "${GIT_COMMIT}" \
@@ -96,10 +130,10 @@ COREOS_SDK_VERSION=${COREOS_SDK_VERSION}
 EOF
 git add version.txt
 
-EMAIL="jenkins@jenkins.coreos.systems"
-GIT_AUTHOR_NAME="CoreOS Jenkins"
-GIT_COMMITTER_NAME="${GIT_AUTHOR_NAME}"
-export EMAIL GIT_AUTHOR_NAME GIT_COMMITTER_NAME
+export GIT_AUTHOR_EMAIL GIT_AUTHOR_NAME
+export GIT_COMMITTER_EMAIL="${GIT_AUTHOR_EMAIL}"
+export GIT_COMMITTER_NAME="${GIT_AUTHOR_NAME}"
+
 git commit \
   -m "${COREOS_BUILD_ID}: add build manifest" \
   -m "Based on ${GIT_URL} branch ${MANIFEST_BRANCH}" \
