@@ -54,7 +54,7 @@ Jenkins requires a JDK installation on each slave. For amd64 slaves the Jenkins 
 
 ### Install plugins and jobs
 
-Jenkins jobs in XML format are available in the [`jobs`](jobs) directory. A script called [`install.sh`](install.sh) is provided to copy jobs and install Jenkins plugins. The script will restart Jenkins as required by some plugins.  Newer jenkins installations enable the ```"Prevent Cross Site Request Forgery exploits."``.  If your jenkins log contains entries like ```No valid crumb was included in request for //pluginManager/installNecessaryPlugins. Returning 403```, try disabling this option.
+Jenkins jobs in XML format are available in the [`jobs`](jobs) directory. A script called [`install.sh`](install.sh) is provided to copy jobs and install Jenkins plugins. The script will restart Jenkins as required by some plugins.  Use the environment variable ```CURL_OPTS``` to pass any additional options when running curl, for example ```CURL_OPTS='--user username:password'```.  Newer jenkins installations enable the ```"Prevent Cross Site Request Forgery exploits."``.  If your jenkins log contains entries like ```No valid crumb was included in request for //pluginManager/installNecessaryPlugins. Returning 403```, try disabling this option.
 
 For example, if the Jenkins instance is at `http://127.0.0.1:8080`:
 
