@@ -422,6 +422,21 @@ finish_image() {
   fi
 
   rm -rf "${BUILD_DIR}"/configroot
+
+  if [ -n "${COPY_ROOTFS}" -a -t 0 -a -t 1 ]; then
+    if [[ "${COPY_ROOTFS}" = "y" || "${COPY_ROOTFS}" = "Y" ]]; then
+      copy="y"
+    else
+      read -p "Copy ${IMAGE_BUILD_TYPE} rootfs directory (Y/n)? " copy
+      copy="${copy:0:1}" # Get just the first character.
+    fi
+
+    if [[ "${copy}" != "n" && "${copy}" != "N" ]] ; then
+      echo "Copying to ${root_fs_dir}-${IMAGE_BUILD_TYPE}-copy"
+      sudo cp -a "${root_fs_dir}" "${root_fs_dir}-${IMAGE_BUILD_TYPE}-copy"
+    fi
+  fi
+
   cleanup_mounts "${root_fs_dir}"
   trap - EXIT
 
