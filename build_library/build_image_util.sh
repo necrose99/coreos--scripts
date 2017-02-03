@@ -339,6 +339,28 @@ finish_image() {
   sudo cp "${root_fs_dir}/usr/boot/vmlinuz" \
        "${root_fs_dir}/boot/coreos/vmlinuz-a"
 
+  # copy custom kernels
+  if [[ -e "${root_fs_dir}/usr/boot/dtb" ]]; then
+    sudo cp --recursive "${root_fs_dir}/usr/boot/dtb" \
+      "${root_fs_dir}/boot/coreos/"
+  fi
+
+  if [[ -e "${root_fs_dir}/usr/boot/hikey/vmlinuz" ]]; then
+    sudo mkdir -p "${root_fs_dir}/boot/coreos/hikey/dtb"
+    sudo cp "${root_fs_dir}/usr/boot/hikey/vmlinuz" \
+      "${root_fs_dir}/boot/coreos/hikey/"
+    sudo cp --recursive "${root_fs_dir}/usr/boot/hikey/dtb/hisilicon" \
+      "${root_fs_dir}/boot/coreos/hikey/dtb/"
+  fi
+
+  if [[ -e "${root_fs_dir}/usr/boot/d02/vmlinuz" ]]; then
+       sudo mkdir -p "${root_fs_dir}/boot/coreos/d02/dtb"
+       sudo cp "${root_fs_dir}/usr/boot/d02/vmlinuz" \
+            "${root_fs_dir}/boot/coreos/d02/"
+       sudo cp --recursive "${root_fs_dir}/usr/boot/d02/dtb/hisilicon" \
+            "${root_fs_dir}/boot/coreos/d02/dtb/"
+  fi
+
   # Record directories installed to the state partition.
   # Explicitly ignore entries covered by existing configs.
   local tmp_ignore=$(awk '/^[dDfFL]/ {print "--ignore=" $2}' \
