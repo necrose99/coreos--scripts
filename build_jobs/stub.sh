@@ -5,6 +5,8 @@
 
 set -ex
 
+source "${JOB_CONFIG}"
+
 # build may not be started without a ref value
 [[ -n "${MANIFEST_REF#refs/tags/}" ]]
 
