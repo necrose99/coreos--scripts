@@ -2,17 +2,30 @@
 <project>
   <actions/>
   <description></description>
-  <logRotator class="hudson.tasks.LogRotator">
-    <daysToKeep>30</daysToKeep>
-    <numToKeep>50</numToKeep>
-    <artifactDaysToKeep>-1</artifactDaysToKeep>
-    <artifactNumToKeep>-1</artifactNumToKeep>
-  </logRotator>
   <keepDependencies>false</keepDependencies>
   <properties>
-    <com.coravy.hudson.plugins.github.GithubProjectProperty plugin="github@1.14.0">
+    <jenkins.model.BuildDiscarderProperty>
+      <strategy class="hudson.tasks.LogRotator">
+        <daysToKeep>30</daysToKeep>
+        <numToKeep>5</numToKeep>
+        <artifactDaysToKeep>-1</artifactDaysToKeep>
+        <artifactNumToKeep>-1</artifactNumToKeep>
+      </strategy>
+    </jenkins.model.BuildDiscarderProperty>
+    <com.coravy.hudson.plugins.github.GithubProjectProperty plugin="github@1.25.0">
       <projectUrl>https://github.com/coreos/manifest/</projectUrl>
+      <displayName></displayName>
     </com.coravy.hudson.plugins.github.GithubProjectProperty>
+    <hudson.plugins.copyartifact.CopyArtifactPermissionProperty plugin="copyartifact@1.38.1">
+      <projectNameList>
+        <string>os-*</string>
+      </projectNameList>
+    </hudson.plugins.copyartifact.CopyArtifactPermissionProperty>
+    <com.sonyericsson.rebuild.RebuildSettings plugin="rebuild@1.25">
+      <autoRebuild>false</autoRebuild>
+      <rebuildDisabled>false</rebuildDisabled>
+    </com.sonyericsson.rebuild.RebuildSettings>
+    <com.synopsys.arc.jenkinsci.plugins.jobrestrictions.jobs.JobRestrictionProperty plugin="job-restrictions@0.6"/>
     <hudson.model.ParametersDefinitionProperty>
       <parameterDefinitions>
         <hudson.model.StringParameterDefinition>
@@ -29,23 +42,13 @@ https://wiki.cyanogenmod.org/w/Doc:_Using_manifests#The_local_manifest</descript
         </hudson.model.TextParameterDefinition>
       </parameterDefinitions>
     </hudson.model.ParametersDefinitionProperty>
-    <hudson.plugins.copyartifact.CopyArtifactPermissionProperty plugin="copyartifact@1.37">
-      <projectNameList>
-        <string>os-*</string>
-      </projectNameList>
-    </hudson.plugins.copyartifact.CopyArtifactPermissionProperty>
-    <com.sonyericsson.rebuild.RebuildSettings plugin="rebuild@1.25">
-      <autoRebuild>false</autoRebuild>
-      <rebuildDisabled>false</rebuildDisabled>
-    </com.sonyericsson.rebuild.RebuildSettings>
-    <com.synopsys.arc.jenkinsci.plugins.jobrestrictions.jobs.JobRestrictionProperty plugin="job-restrictions@0.4"/>
   </properties>
-  <scm class="hudson.plugins.git.GitSCM" plugin="git@2.4.0">
+  <scm class="hudson.plugins.git.GitSCM" plugin="git@3.0.1">
     <configVersion>2</configVersion>
     <userRemoteConfigs>
       <hudson.plugins.git.UserRemoteConfig>
         <name>origin</name>
-        <url>https://github.com/coreos/manifest.git</url>
+        <url>https://github.com/glevand/coreos--manifest.git</url>
       </hudson.plugins.git.UserRemoteConfig>
     </userRemoteConfigs>
     <branches>
@@ -65,7 +68,7 @@ https://wiki.cyanogenmod.org/w/Doc:_Using_manifests#The_local_manifest</descript
       <hudson.plugins.git.extensions.impl.CleanBeforeCheckout/>
     </extensions>
   </scm>
-  <assignedNode>coreos</assignedNode>
+  <assignedNode>coreos &amp;&amp; amd64</assignedNode>
   <canRoam>false</canRoam>
   <disabled>false</disabled>
   <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
@@ -73,7 +76,7 @@ https://wiki.cyanogenmod.org/w/Doc:_Using_manifests#The_local_manifest</descript
   <triggers/>
   <concurrentBuild>false</concurrentBuild>
   <builders>
-    <hudson.plugins.copyartifact.CopyArtifact plugin="copyartifact@1.37">
+    <hudson.plugins.copyartifact.CopyArtifact plugin="copyartifact@1.38.1">
       <project>os-mantle</project>
       <filter></filter>
       <target></target>
@@ -86,25 +89,81 @@ https://wiki.cyanogenmod.org/w/Doc:_Using_manifests#The_local_manifest</descript
       <doNotFingerprintArtifacts>false</doNotFingerprintArtifacts>
     </hudson.plugins.copyartifact.CopyArtifact>
     <hudson.tasks.Shell>
-      <command>#!/bin/bash -ex
+      <command>#!/bin/bash
+#
+# Jenkins job for creating build manifests.
+#
+# Input Parameters:
+#
+#   COREOS_DEV_BUILDS=builds.developer.core-os.net
+#     Upload root for binary SDK and board packages.
+#
+#   GIT_AUTHOR_EMAIL=jenkins@jenkins.coreos.systems
+#     Jenkins commit author.
+#
+#   GIT_AUTHOR_NAME=&quot;CoreOS Jenkins&quot;
+#     Jenkins commit author.
+#
+#   GPG_USER_ID=buildbot@coreos.com
+#     User ID for GPG_SECRET_KEY_FILE.
+#
+#   LOCAL_MANIFEST=
+#     Repo local manifest to amend the branch&apos;s default manifest with.
+#     https://wiki.cyanogenmod.org/w/Doc:_Using_manifests#The_local_manifest
+#
+#   MANIFEST_REF=master
+#     Git branch or tag in github.com/coreos/manifest to build
+#
+#   MANIFEST_URL=https://github.com/coreos/manifest-builds.git
+#     Git repository of manifest-builds.
+#
+# Input Artifacts:
+#
+#   $WORKSPACE/bin/cork from a recent mantle build.
+#
+# Git:
+#
+#   MANIFEST_URL checked out to $WORKSPACE/manifest
+#   Requires SSH push access to MANIFEST_URL
+#
+# Output:
+#
+#   Pushes build tag to MANIFEST_URL.
+#   Writes manifest.properties w/ parameters for sdk and toolchain jobs.
 
-COREOS_OFFICIAL=0
+set -ex
+
+COREOS_DEV_BUILDS=&quot;glevand-dev-builds&quot;
+COREOS_DL_ROOT=&quot;&quot;
+COREOS_REL_BUILDS=&quot;glevand-dev-builds&quot;
+GIT_AUTHOR_EMAIL=&quot;jenkins@openhuawei.com&quot;
+GIT_AUTHOR_NAME=&quot;OpenHuawei Jenkins&quot;
+GPG_USER_ID=&quot;jenkins@openhuawei.com&quot;
+MANIFEST_URL=&quot;https://github.com/glevand/manifest-builds.git&quot;
+
+export GIT_SSH_COMMAND=&quot;ssh -o StrictHostKeyChecking=no&quot;
 
 finish() {
   local tag=&quot;$1&quot;
   git -C &quot;${WORKSPACE}/manifest&quot; push \
-    &quot;ssh://git@github.com/coreos/manifest-builds.git&quot; \
+    &quot;ssh://git@${MANIFEST_URL#https://}&quot; \
     &quot;refs/tags/${tag}:refs/tags/${tag}&quot;
   tee &quot;${WORKSPACE}/manifest.properties&quot; &lt;&lt;EOF
-MANIFEST_URL = https://github.com/coreos/manifest-builds.git
-MANIFEST_REF = refs/tags/${tag}
-MANIFEST_NAME = release.xml
+COREOS_DEV_BUILDS = ${COREOS_DEV_BUILDS}
+COREOS_DL_ROOT = ${COREOS_DL_ROOT}
+COREOS_REL_BUILDS = ${COREOS_REL_BUILDS}
 COREOS_OFFICIAL = ${COREOS_OFFICIAL:-0}
+GPG_USER_ID = ${GPG_USER_ID}
+LOCAL_MANIFEST = ${LOCAL_MANIFEST}
+MANIFEST_NAME = release.xml
+MANIFEST_REF = refs/tags/${tag}
+MANIFEST_URL = ${MANIFEST_URL}
 EOF
 }
 
 # Branches are of the form remote-name/branch-name. Tags are just tag-name.
 # If we have a release tag use it, for branches we need to make a tag.
+COREOS_OFFICIAL=0
 if [[ &quot;${GIT_BRANCH}&quot; != */* ]]; then
   COREOS_OFFICIAL=1
   finish &quot;${GIT_BRANCH}&quot;
@@ -131,6 +190,9 @@ if [[ -n &quot;${LOCAL_MANIFEST}&quot; ]]; then
   cat &gt;.repo/local_manifests/local.xml &lt;&lt;&lt;&quot;${LOCAL_MANIFEST}&quot;
 fi
 
+# Cleanup any failed jenkins build
+./bin/cork delete
+
 ./bin/cork update --create --downgrade-replace --verbose \
                   --manifest-url &quot;${GIT_URL}&quot; \
                   --manifest-branch &quot;${GIT_COMMIT}&quot; \
@@ -156,10 +218,10 @@ COREOS_SDK_VERSION=${COREOS_SDK_VERSION}
 EOF
 git add version.txt
 
-EMAIL=&quot;jenkins@jenkins.coreos.systems&quot;
-GIT_AUTHOR_NAME=&quot;CoreOS Jenkins&quot;
-GIT_COMMITTER_NAME=&quot;${GIT_AUTHOR_NAME}&quot;
-export EMAIL GIT_AUTHOR_NAME GIT_COMMITTER_NAME
+export GIT_AUTHOR_EMAIL GIT_AUTHOR_NAME
+export GIT_COMMITTER_EMAIL=&quot;${GIT_AUTHOR_EMAIL}&quot;
+export GIT_COMMITTER_NAME=&quot;${GIT_AUTHOR_NAME}&quot;
+
 git commit \
   -m &quot;${COREOS_BUILD_ID}: add build manifest&quot; \
   -m &quot;Based on ${GIT_URL} branch ${MANIFEST_BRANCH}&quot; \
@@ -171,11 +233,12 @@ cd &quot;${WORKSPACE}&quot;
 ln -sf &quot;manifests/${COREOS_BUILD_ID}.xml&quot; .repo/manifest.xml
 ./bin/cork verify
 
-finish &quot;${COREOS_BUILD_ID}&quot;</command>
+finish &quot;${COREOS_BUILD_ID}&quot;
+</command>
     </hudson.tasks.Shell>
   </builders>
   <publishers>
-    <hudson.tasks.test.AggregatedTestResultPublisher plugin="junit@1.9">
+    <hudson.tasks.test.AggregatedTestResultPublisher plugin="junit@1.19">
       <includeFailedBuilds>true</includeFailedBuilds>
     </hudson.tasks.test.AggregatedTestResultPublisher>
     <hudson.tasks.ArtifactArchiver>
@@ -184,8 +247,9 @@ finish &quot;${COREOS_BUILD_ID}&quot;</command>
       <onlyIfSuccessful>false</onlyIfSuccessful>
       <fingerprint>false</fingerprint>
       <defaultExcludes>true</defaultExcludes>
+      <caseSensitive>true</caseSensitive>
     </hudson.tasks.ArtifactArchiver>
-    <hudson.plugins.parameterizedtrigger.BuildTrigger plugin="parameterized-trigger@2.30">
+    <hudson.plugins.parameterizedtrigger.BuildTrigger plugin="parameterized-trigger@2.32">
       <configs>
         <hudson.plugins.parameterizedtrigger.BuildTriggerConfig>
           <configs>
@@ -204,9 +268,9 @@ finish &quot;${COREOS_BUILD_ID}&quot;</command>
     </hudson.plugins.parameterizedtrigger.BuildTrigger>
   </publishers>
   <buildWrappers>
-    <com.cloudbees.jenkins.plugins.sshagent.SSHAgentBuildWrapper plugin="ssh-agent@1.8">
+    <com.cloudbees.jenkins.plugins.sshagent.SSHAgentBuildWrapper plugin="ssh-agent@1.13">
       <credentialIds>
-        <string>8b41f1e0-1ea9-4dc5-b64f-9b3b883b78c2</string>
+        <string>a331da9e-e1a8-4c05-bde9-d0aa28315042</string>
       </credentialIds>
       <ignoreMissing>false</ignoreMissing>
     </com.cloudbees.jenkins.plugins.sshagent.SSHAgentBuildWrapper>
