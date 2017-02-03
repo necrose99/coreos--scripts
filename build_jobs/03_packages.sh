@@ -4,16 +4,23 @@
 #
 # Input Parameters:
 #
-#   MANIFEST_URL=https://github.com/coreos/manifest-builds.git
-#   MANIFEST_REF=refs/tags/
-#   MANIFEST_NAME=release.xml
-#     Git URL, tag, and manifest file for this build.
+#   BOARD=amd64-usr
+#     Target board to build.
+#
+#   COREOS_DEV_BUILDS=builds.developer.core-os.net
+#     Upload root for binary SDK and board packages.
 #
 #   COREOS_OFFICIAL=0
 #     Set to 1 when building official releases.
 #
-#   BOARD=amd64-usr
-#     Target board to build.
+#   MANIFEST_NAME=release.xml
+#     Git URL, tag, and manifest file for this build.
+#
+#   MANIFEST_REF=refs/tags/${tag}
+#     Git branch or tag in github.com/coreos/manifest to build
+#
+#   MANIFEST_URL=https://github.com/coreos/manifest-builds.git
+#     Git repository of manifest-builds.
 #
 # Input Artifacts:
 #
@@ -26,7 +33,7 @@
 #
 # Output:
 #
-#   Uploads binary packages to gs://builds.developer.core-os.net
+#   Uploads binary packages to COREOS_DEV_BUILDS
 
 set -ex
 
@@ -37,7 +44,9 @@ mkdir -p .cache/ccache
 enter() {
   ./bin/cork enter --experimental -- env \
     CCACHE_DIR="/mnt/host/source/.cache/ccache" \
-    CCACHE_MAXSIZE="5G" "$@"
+    CCACHE_MAXSIZE="5G" \
+    COREOS_DEV_BUILDS="http://storage.googleapis.com/${COREOS_DEV_BUILDS}" \
+    "$@"
 }
 
 script() {
@@ -53,7 +62,6 @@ enter ccache --zero-stats
 
 #if [[ "${COREOS_OFFICIAL:-0}" -eq 1 ]]; then
   script setup_board --board=${BOARD} \
-                     --skip_chroot_upgrade \
                      --getbinpkgver=${COREOS_VERSION} \
                      --toolchainpkgonly \
                      --force
@@ -62,6 +70,6 @@ script build_packages --board=${BOARD} \
                       --skip_chroot_upgrade \
                       --getbinpkgver=${COREOS_VERSION} \
                       --toolchainpkgonly \
-                      --upload --upload_root gs://builds.developer.core-os.net
+                      --upload --upload_root gs://${COREOS_DEV_BUILDS}
 
 enter ccache --show-stats
