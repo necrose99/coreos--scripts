@@ -259,7 +259,7 @@ load_environment_var() {
   local file="$1" name value
   shift
   for name in "$@"; do
-    value=$(grep "^${name}=" "${file}")
+    value=$(grep "^${name}=" "${file}" | sed 's|"||g')
     export "${value}"
   done
 }
@@ -290,7 +290,7 @@ REPO_MANIFESTS_DIR="${REPO_ROOT}/.repo/manifests"
 # Source COREOS_VERSION_ID from manifest.
 if [[ -f "${REPO_MANIFESTS_DIR}/version.txt" ]]; then
   load_environment_var "${REPO_MANIFESTS_DIR}/version.txt" \
-      COREOS_VERSION_ID COREOS_SDK_VERSION
+      COREOS_VERSION_ID COREOS_BUILD_ID COREOS_SDK_VERSION
   # The build id may be provided externally by the build system.
   : ${COREOS_BUILD_ID:=$(date +%Y-%m-%d-%H%M)}
 elif [[ -f "${SCRIPT_LOCATION}/version.txt" ]]; then
