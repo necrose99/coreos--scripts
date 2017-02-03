@@ -54,7 +54,7 @@ To create a slave, you will need to run CoreOS and either give Jenkins Oracle.co
 
 ### Install plugins and jobs
 
-Jenkins jobs in XML format are available in the [`jobs`](jobs) directory. A script called [`install.sh`](install.sh) is provided to copy jobs and install Jenkins plugins. The script will restart Jenkins as required by some plugins.
+Jenkins jobs in XML format are available in the [`jobs`](jobs) directory. A script called [`install.sh`](install.sh) is provided to copy jobs and install Jenkins plugins. The script will restart Jenkins as required by some plugins.  Newer jenkins installations enable the ```"Prevent Cross Site Request Forgery exploits."``.  If your jenkins log contains entries like ```No valid crumb was included in request for //pluginManager/installNecessaryPlugins. Returning 403```, try disabling this option.
 
 For example, if the Jenkins instance is at `http://127.0.0.1:8080`:
 
