@@ -50,7 +50,7 @@ If you have no Jenkins instance, you can run one in a [Docker container](https:/
 docker run -p 8080:8080 -p 50000:50000 jenkins
 ```
 
-To create a slave, you will need to run CoreOS and either give Jenkins Oracle.com credentials to automatically install the JDK, or copy a JDK tarball to the CoreOS system and set `$JAVA_HOME` in the slave settings.
+Jenkins requires a JDK installation on each slave. For amd64 slaves the Jenkins master can automatically install the JDK on the slave with either its default JDK installer or a user configured ```JDK Installer```.  For arm64 slaves the JDK must be installed manually by extracting the arm64 JDK tarball on the slave.  The JDK must either be installed to one of the Jenkins JDK search paths, ```/home/$USER/jdk``` for example, or the slave environment variable `$JAVA_HOME` must be set.  The JDK on amd64 slaves can also be setup manually in this way.
 
 ### Install plugins and jobs
 
