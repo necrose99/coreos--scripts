@@ -4,20 +4,33 @@
 #
 # Input Parameters:
 #
-#   USE_CACHE=false
-#     Enable use of any binary packages cached locally from previous builds.
-#     Currently not safe to enable, particularly bad with multiple branches.
+#   BOARD=amd64-usr
+#     Target board to build.
 #
-#   MANIFEST_URL=https://github.com/coreos/manifest-builds.git
-#   MANIFEST_REF=refs/tags/
-#   MANIFEST_NAME=release.xml
-#     Git URL, tag, and manifest file for this build.
+#   COREOS_DEV_BUILDS=builds.developer.core-os.net
+#     Upload root for binary SDK and board packages.
 #
 #   COREOS_OFFICIAL=0
 #     Set to 1 when building official releases.
 #
-#   BOARD=amd64-usr
-#     Target board to build.
+#   COREOS_REL_BUILDS=builds.release.core-os.net
+#     Upload root for images.
+#
+#   GPG_USER_ID=${GPG_USER_ID}
+#     User ID for GPG_SECRET_KEY_FILE.
+#
+#   MANIFEST_NAME=release.xml
+#     Git URL, tag, and manifest file for this build.
+#
+#   MANIFEST_REF=refs/tags/${tag}
+#     Git branch or tag in github.com/coreos/manifest to build
+#
+#   MANIFEST_URL=https://github.com/coreos/manifest-builds.git
+#     Git repository of manifest-builds.
+#
+#   USE_CACHE=false
+#     Enable use of any binary packages cached locally from previous builds.
+#     Currently not safe to enable, particularly bad with multiple branches.
 #
 # Input Artifacts:
 #
@@ -33,17 +46,23 @@
 #
 # Output:
 #
-#   Uploads test branch images to gs://builds.developer.core-os.net and
-#   official images to gs://builds.release.core-os.net
+#   Uploads test branch images to COREOS_REL_BUILDS and official images to
+#   COREOS_DEV_BUILDS.
 
 set -ex
 
 # first thing, clear out old images
 sudo rm -rf src/build
 
+enter() {
+  ./bin/cork enter --experimental -- env \
+    COREOS_DEV_BUILDS="http://storage.googleapis.com/${COREOS_DEV_BUILDS}" \
+    "$@"
+}
+
 script() {
   local script="/mnt/host/source/src/scripts/${1}"; shift
-  ./bin/cork enter --experimental -- "${script}" "$@"
+  enter "${script}" "$@"
 }
 
 source .repo/manifests/version.txt
@@ -63,11 +82,11 @@ script setup_board --board=${BOARD} \
 
 if [[ "${COREOS_OFFICIAL}" -eq 1 ]]; then
   GROUP=stable
-  UPLOAD=gs://builds.release.core-os.net/stable
+  UPLOAD=gs://${COREOS_REL_BUILDS}/stable
   script set_official --board=${BOARD} --official
 else
   GROUP=developer
-  UPLOAD=gs://builds.developer.core-os.net
+  UPLOAD=gs://${COREOS_DEV_BUILDS}/images
   script set_official --board=${BOARD} --noofficial
 fi
 
@@ -75,22 +94,22 @@ script build_image --board=${BOARD} \
                    --group=${GROUP} \
                    --getbinpkg \
                    --getbinpkgver="${COREOS_VERSION}" \
-                   --sign=buildbot@coreos.com \
-                   --sign_digests=buildbot@coreos.com \
+                   --sign=${GPG_USER_ID} \
+                   --sign_digests=${GPG_USER_ID} \
                    --upload_root=${UPLOAD} \
                    --upload prod container
 
 if [[ "${COREOS_OFFICIAL}" -eq 1 ]]; then
   script image_set_group --board=${BOARD} \
                          --group=alpha \
-                         --sign=buildbot@coreos.com \
-                         --sign_digests=buildbot@coreos.com \
-                         --upload_root=gs://builds.release.core-os.net/alpha \
+                         --sign=${GPG_USER_ID} \
+                         --sign_digests=${GPG_USER_ID} \
+                         --upload_root=gs://${COREOS_REL_BUILDS}/alpha \
                          --upload
   script image_set_group --board=${BOARD} \
                          --group=beta \
-                         --sign=buildbot@coreos.com \
-                         --sign_digests=buildbot@coreos.com \
-                         --upload_root=gs://builds.release.core-os.net/beta \
+                         --sign=${GPG_USER_ID} \
+                         --sign_digests=${GPG_USER_ID} \
+                         --upload_root=gs://${COREOS_REL_BUILDS}/beta \
                          --upload
 fi
