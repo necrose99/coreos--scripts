@@ -1,0 +1,76 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description></description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <com.sonyericsson.rebuild.RebuildSettings plugin="rebuild@1.25">
+      <autoRebuild>false</autoRebuild>
+      <rebuildDisabled>false</rebuildDisabled>
+    </com.sonyericsson.rebuild.RebuildSettings>
+    <com.synopsys.arc.jenkinsci.plugins.jobrestrictions.jobs.JobRestrictionProperty plugin="job-restrictions@0.5"/>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>MANIFEST_BUILDS_HOST</name>
+          <description></description>
+          <defaultValue>github.com</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>MANIFEST_BUILDS_REPO</name>
+          <description></description>
+          <defaultValue>glevand/manifest-builds.git</defaultValue>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+  </properties>
+  <scm class="hudson.scm.NullSCM"/>
+  <assignedNode>coreos</assignedNode>
+  <canRoam>false</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <jdk>(System)</jdk>
+  <triggers/>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>export COREOS_BUILD_ID=&quot;push-test-${BUILD_NUMBER}&quot;
+
+EMAIL=&quot;jenkins@openhuawei.com&quot;
+GIT_AUTHOR_NAME=&quot;OpenHuawei Jenkins&quot;
+GIT_COMMITTER_NAME=&quot;${GIT_AUTHOR_NAME}&quot;
+export EMAIL GIT_AUTHOR_NAME GIT_COMMITTER_NAME
+
+echo &quot;in job&quot;
+#git clone --verbose https://${MANIFEST_BUILDS_HOST}/${MANIFEST_BUILDS_REPO} http-pull
+git clone --verbose git@${MANIFEST_BUILDS_HOST}:${MANIFEST_BUILDS_REPO} ssh-pull
+
+cd ssh-pull
+git checkout master
+data=$(date)
+echo &quot;$data&quot; &gt;&gt; aaa.test
+git add .
+git commit -am &quot;Add at: $data&quot;
+git push origin master
+
+git tag -m &quot;${COREOS_BUILD_ID}&quot; &quot;${COREOS_BUILD_ID}&quot; HEAD
+
+#ssh://[user@]host.xz[:port]/path/to/repo.git/
+
+git push --verbose \
+    &quot;ssh://git@${MANIFEST_BUILDS_HOST}/${MANIFEST_BUILDS_REPO}&quot; \
+    &quot;refs/tags/${COREOS_BUILD_ID}:refs/tags/${COREOS_BUILD_ID}&quot;
+
+</command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers/>
+  <buildWrappers>
+    <hudson.plugins.ws__cleanup.PreBuildCleanup plugin="ws-cleanup@0.30">
+      <deleteDirs>false</deleteDirs>
+      <cleanupParameter></cleanupParameter>
+      <externalDelete></externalDelete>
+    </hudson.plugins.ws__cleanup.PreBuildCleanup>
+  </buildWrappers>
+</project>
